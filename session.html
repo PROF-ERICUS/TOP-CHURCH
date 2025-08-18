@@ -3,26 +3,70 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Attendance Session - Grace Fellowship Church</title>
+<title>Attendance Session - Top Ministries International</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <style>
-  body { background: #f8f9fa; min-height: 100vh; display: flex; flex-direction: column; }
-  main { flex: 1; padding: 40px 20px 20px; max-width: 900px; margin: auto; }
+  body { display: flex; flex-direction: column; min-height: 100vh; margin: 0; background: #f8f9fa; }
+
+  /* Header fixed and shrinkable */
+  header { 
+    background-color: #f71717;
+    color: white; 
+    padding: 1rem; 
+    position: fixed; 
+    top: 0; 
+    width: 100%; 
+    z-index: 1000; 
+    display: flex; 
+    justify-content: space-between; 
+    flex-wrap: wrap; 
+    align-items: center; 
+    transition: all 0.3s ease; 
+  }
+  header.shrink { padding: 0.5rem 1rem; }
+  header h3 { margin: 0; font-size: 1.5rem; transition: all 0.3s ease; }
+  header.shrink h3 { font-size: 1.2rem; }
+  nav a { margin: 0 0.5rem; }
+
+  main { flex: 1 0 auto; padding: 120px 15px 20px; max-width: 900px; margin: auto; }
+
   .card { margin-bottom: 20px; }
+
+  footer { flex-shrink: 0; background-color: #343a40; color: white; padding: 1rem; text-align: center; }
+
+  /* Back to Top button */
+  #backToTop {
+    position: fixed;
+    bottom: 40px;
+    right: 20px;
+    display: none;
+    z-index: 999;
+    border-radius: 50%;
+    width: 45px;
+    height: 45px;
+    font-size: 24px;
+    line-height: 1;
+    padding: 0;
+  }
+
+  @media(max-width: 576px){
+    nav { width: 100%; text-align: center; margin-top: 0.5rem; }
+    nav a { display: inline-block; margin: 0.25rem 0.25rem; }
+  }
 </style>
 </head>
 <body>
 
-<header class="bg-primary text-white py-3 mb-3">
-  <div class="container d-flex justify-content-between align-items-center">
-    <h3 class="m-0">Attendance Session</h3>
-    <nav>
-      <a href="index.html" class="btn btn-light btn-sm mx-1">Home</a>
-      <a href="registration.html" class="btn btn-light btn-sm mx-1">Register</a>
-      <a href="admin-dash.html" class="btn btn-light btn-sm mx-1">Admin</a>
-      <a href="session.html" class="btn btn-light btn-sm mx-1">Attendance</a>
-    </nav>
-  </div>
+<header>
+  <h3>Attendance Session</h3>
+  <nav>
+    <a href="index.html" class="btn btn-light btn-sm">Home</a>
+    <a href="registration.html" class="btn btn-light btn-sm">Register</a>
+    <a href="admin-dash.html" class="btn btn-light btn-sm">Admin</a>
+    <a href="session.html" class="btn btn-light btn-sm">Attendance</a>
+    <a href="notify.html" class="btn btn-warning">📩 Notify Absentees</a>
+
+  </nav>
 </header>
 
 <main>
@@ -32,7 +76,8 @@
     <div class="card-body">
       <h5 class="card-title">Mark Attendance</h5>
       <input type="text" id="memberPhone" class="form-control mb-2" placeholder="Enter member phone number">
-      <button id="markAttendanceBtn" class="btn btn-success w-100">Mark Attendance</button>
+      <button id="markAttendanceBtn" class="btn btn-success w-100 mb-2">Mark Attendance</button>
+      <button id="printAttendanceBtn" class="btn btn-secondary w-100">Print Attendance</button>
       <div id="attendanceMsg" class="mt-2"></div>
     </div>
   </div>
@@ -45,61 +90,98 @@
   </div>
 </main>
 
+<footer>
+  &copy; <span id="year"></span> Top Ministries International. All Rights Reserved. | 
+  Contact: info@topministries.com
+</footer>
+
+<!-- Back to Top Button -->
+<button id="backToTop" class="btn btn-primary" title="Back to Top">↑</button>
+
 <script>
-let currentSession = JSON.parse(localStorage.getItem("currentSession")) || null;
-let members = JSON.parse(localStorage.getItem("members")) || [];
-
-const markBtn = document.getElementById("markAttendanceBtn");
-const phoneInput = document.getElementById("memberPhone");
-const attendanceMsg = document.getElementById("attendanceMsg");
-const attendanceList = document.getElementById("attendanceList");
-
-function renderAttendanceRecords() {
-  attendanceList.innerHTML = "";
-  if(!currentSession || !currentSession.attendanceRecords?.length){
-    attendanceList.innerHTML = "<li class='list-group-item'>No attendance yet.</li>";
-    return;
-  }
-  currentSession.attendanceRecords.forEach(r => {
-    const li = document.createElement("li");
-    li.className = "list-group-item";
-    li.textContent = `${r.name} (${r.phone}) - ${r.status} [${r.date} ${r.time}]`;
-    attendanceList.appendChild(li);
+  // Shrink header on scroll & Back to Top button
+  const header = document.querySelector("header");
+  const backToTop = document.getElementById("backToTop");
+  window.addEventListener("scroll", () => {
+    if(window.scrollY > 50) header.classList.add("shrink");
+    else header.classList.remove("shrink");
+    backToTop.style.display = window.scrollY > 200 ? "block" : "none";
   });
-}
+  backToTop.addEventListener("click", () => window.scrollTo({ top: 0, behavior: 'smooth' }));
 
-markBtn.onclick = () => {
-  if(!currentSession || !currentSession.sessionOpen) {
-    return attendanceMsg.innerHTML="<div class='text-danger'>Session is not open!</div>";
+  // Attendance logic
+  let currentSession = JSON.parse(localStorage.getItem("currentSession")) || { sessionOpen: true, sessionDate: new Date().toISOString().split("T")[0], attendanceRecords: [] };
+  let members = JSON.parse(localStorage.getItem("members")) || [];
+
+  const markBtn = document.getElementById("markAttendanceBtn");
+  const printBtn = document.getElementById("printAttendanceBtn");
+  const phoneInput = document.getElementById("memberPhone");
+  const attendanceMsg = document.getElementById("attendanceMsg");
+  const attendanceList = document.getElementById("attendanceList");
+
+  function renderAttendanceRecords() {
+    attendanceList.innerHTML = "";
+    if(!currentSession.attendanceRecords?.length){
+      attendanceList.innerHTML = "<li class='list-group-item'>No attendance yet.</li>";
+      return;
+    }
+    currentSession.attendanceRecords.forEach(r => {
+      const li = document.createElement("li");
+      li.className = "list-group-item";
+      li.textContent = `${r.name} (${r.phone}) - ${r.status} [${r.date} ${r.time}]`;
+      attendanceList.appendChild(li);
+    });
   }
-  const phone = phoneInput.value.trim();
-  if(!phone) return;
 
-  const member = members.find(m => m.phone === phone);
-  if(!member) return attendanceMsg.innerHTML="<div class='text-danger'>Member not found!</div>";
+  markBtn.onclick = () => {
+    if(!currentSession.sessionOpen) {
+      return attendanceMsg.innerHTML="<div class='text-danger'>Session is not open!</div>";
+    }
+    const phone = phoneInput.value.trim();
+    if(!phone) return;
 
-  if(currentSession.attendanceRecords.some(r => r.phone === phone)) {
-    return attendanceMsg.innerHTML="<div class='text-warning'>Already marked!</div>";
-  }
+    const member = members.find(m => m.phone === phone);
+    if(!member) return attendanceMsg.innerHTML="<div class='text-danger'>Member not found!</div>";
 
-  const now = new Date();
-  currentSession.attendanceRecords.push({
-    name: member.fullName,
-    phone: member.phone,
-    status: "Present",
-    date: currentSession.sessionDate,
-    time: now.toTimeString().slice(0,5)
-  });
+    if(currentSession.attendanceRecords.some(r => r.phone === phone)) {
+      return attendanceMsg.innerHTML="<div class='text-warning'>Already marked!</div>";
+    }
 
-  localStorage.setItem("currentSession", JSON.stringify(currentSession));
-  attendanceMsg.innerHTML="<div class='text-success'>Attendance marked!</div>";
-  phoneInput.value = "";
+    const now = new Date();
+    currentSession.attendanceRecords.push({
+      name: member.fullName,
+      phone: member.phone,
+      status: "Present",
+      date: currentSession.sessionDate,
+      time: now.toTimeString().slice(0,5)
+    });
+
+    localStorage.setItem("currentSession", JSON.stringify(currentSession));
+    attendanceMsg.innerHTML="<div class='text-success'>Attendance marked!</div>";
+    phoneInput.value = "";
+    renderAttendanceRecords();
+  };
+
+  // Print Attendance
+  printBtn.onclick = () => {
+    if(!currentSession.attendanceRecords?.length){
+      alert("No attendance to print.");
+      return;
+    }
+    const printContent = currentSession.attendanceRecords.map(r => `${r.name} (${r.phone}) - ${r.status} [${r.date} ${r.time}]`).join("\n");
+    const win = window.open('', '', 'width=600,height=600');
+    win.document.write(`<pre>${printContent}</pre>`);
+    win.document.close();
+    win.print();
+  };
+
+  // Initialize
   renderAttendanceRecords();
-};
-
-// --- Initialize ---
-renderAttendanceRecords();
 </script>
 
+<script>
+  // Automatically set the current year in footer
+  document.getElementById("year").textContent = new Date().getFullYear();
+</script>
 </body>
 </html>
