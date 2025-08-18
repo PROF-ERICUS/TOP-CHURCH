@@ -14,40 +14,47 @@
     margin: 0;
     background-color: #f8f9fa;
 
-  header {
-    background-color: #f71717;
-    color: white;
-    padding: 1rem;
-    position: fixed;
-    width: 100%;
-    top: 0;
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-wrap: wrap;
-    transition: all 0.3s ease; /* Smooth transition on scroll */
-  }
-  header.shrink {
-    padding: 0.5rem 1rem; /* Reduce padding when scrolling */
-  }
-  header img {
-    height: 50px;
-    margin-right: 0.5rem;
-    transition: all 0.3s ease;
-  }
-  header.shrink img {
-    height: 35px; /* Shrink logo */
-  }
-  header h3 {
-    margin: 0;
-    font-size: 1.5rem;
-    text-align: center;
-    transition: all 0.3s ease;
-  }
-  header.shrink h3 {
-    font-size: 1.2rem; /* Shrink title */
-  }
+header {
+  background-color: #f71717;
+  color: white;
+  padding: 1rem;
+  position: fixed;
+  width: 100%;
+  top: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap; /* allows text to wrap */
+  transition: all 0.3s ease;
+}
+
+header img {
+  height: 50px;
+  margin-right: 0.5rem;
+  transition: all 0.3s ease;
+}
+
+header h3 {
+  margin: 0;
+  font-size: clamp(16px, 4vw, 24px); /* responsive font size */
+  text-align: center;
+  word-break: break-word; /* ensures no overflow */
+  transition: all 0.3s ease;
+}
+
+header.shrink {
+  padding: 0.5rem 1rem;
+}
+
+header.shrink img {
+  height: 35px;
+}
+
+header.shrink h3 {
+  font-size: clamp(14px, 3.5vw, 20px); /* slightly smaller when scrolling */
+}
+
 
   /* Main content spacing for fixed header */
 main {
@@ -311,3 +318,4 @@ main {
 
 </body>
 </html>
+
