@@ -1,87 +1,147 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Member Registration</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <style>
-    body { background-color: #f8f9fa; min-height: 100vh; display: flex; flex-direction: column; }
-    header { background-color: #007bff; color: white; padding: 1rem 0; position: fixed; width: 100%; top: 0; z-index: 1000; }
-    header img { height: 50px; margin-right: 1rem; }
-    main { flex: 1; padding-top: 100px; }
-    footer { background-color: #343a40; color: white; padding: 1rem 0; text-align: center; }
-    .card { margin-top: 2rem; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Member Registration</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+  body { background-color: #f8f9fa; min-height: 100vh; display: flex; flex-direction: column; }
+  main { flex: 1; padding-top: 100px; }
+  #otherRole { display: none; }
+  #gotoHome { display: none; }
+</style>
 </head>
-<body>
+<header class="bg-primary text-white py-3 mb-3">
+  <div class="container d-flex justify-content-between align-items-center">
+    <h3 class="m-0">Grace Fellowship Church</h3>
+    <nav>
+      <a href="index.html" class="btn btn-light btn-sm mx-1">Home</a>
+      <a href="registration.html" class="btn btn-light btn-sm mx-1">Register</a>
+      <a href="admin-dash.html" class="btn btn-light btn-sm mx-1">Admin</a>
+      <a href="session.html" class="btn btn-light btn-sm mx-1">Attendance</a>
+    </nav>
+  </div>
+</header>
 
-<header class="d-flex align-items-center justify-content-center">
-  <img src="church-logo.png" alt="Church Logo">
-  <h3 class="m-0">Grace Fellowship Church</h3>
+<body>
+<header class="text-center bg-primary text-white py-3">
+  <h3>Grace Fellowship Church</h3>
 </header>
 
 <main class="container">
-  <div class="card mx-auto" style="max-width: 600px;">
+  <div id="closedMsg" class="alert alert-warning text-center mt-4 d-none">
+    🚫 Registration is currently closed. Please check back later.
+  </div>
+
+  <div class="card mx-auto" style="max-width: 600px;" id="registrationCard">
     <div class="card-header bg-primary text-white text-center">Member Registration</div>
     <div class="card-body">
       <form id="registrationForm">
         <div class="mb-3">
-          <label class="form-label">Full Name</label>
+          <label>Full Name</label>
           <input type="text" class="form-control" id="fullName" required>
         </div>
         <div class="mb-3">
-          <label class="form-label">Phone Number</label>
+          <label>Phone Number</label>
           <input type="text" class="form-control" id="phone" required>
         </div>
         <div class="mb-3">
-          <label class="form-label">Email (optional)</label>
+          <label>Email (optional)</label>
           <input type="email" class="form-control" id="email">
         </div>
         <div class="mb-3">
-          <label class="form-label">Gender</label>
+          <label>Gender</label>
           <select class="form-select" id="gender" required>
             <option value="">Select...</option>
             <option value="Male">Male</option>
             <option value="Female">Female</option>
           </select>
         </div>
+        <div class="mb-3">
+          <label>Role</label>
+          <select class="form-select" id="role" required>
+            <option value="">Select...</option>
+            <option value="Member">Member</option>
+            <option value="Usher">Usher</option>
+            <option value="Pastor">Pastor</option>
+            <option value="Others">Others</option>
+          </select>
+        </div>
+        <div class="mb-3" id="otherRole">
+          <label>Specify Role</label>
+          <input type="text" class="form-control" id="otherRoleInput">
+        </div>
         <button type="submit" class="btn btn-success w-100">Register</button>
       </form>
       <div class="alert alert-success mt-3 d-none" id="successMsg">
-        Registration successful! Your details are saved.
+        ✅ Registration successful! Your details are saved.
       </div>
+      <button id="gotoHome" class="btn btn-primary w-100 mt-3">Go to Homepage</button>
     </div>
   </div>
 </main>
 
-<footer>
-  &copy; 2025 Grace Fellowship Church. All Rights Reserved. | Contact: info@gracefellowship.com | Phone: +233 123 456 789
-</footer>
-
 <script>
-  const form = document.getElementById("registrationForm");
-  const successMsg = document.getElementById("successMsg");
+const form = document.getElementById("registrationForm");
+const successMsg = document.getElementById("successMsg");
+const roleSelect = document.getElementById("role");
+const otherRoleDiv = document.getElementById("otherRole");
+const otherRoleInput = document.getElementById("otherRoleInput");
+const registrationCard = document.getElementById("registrationCard");
+const closedMsg = document.getElementById("closedMsg");
+const gotoHome = document.getElementById("gotoHome");
 
-  form.addEventListener("submit", e => {
-    e.preventDefault();
-    let members = JSON.parse(localStorage.getItem("members")) || [];
+const registrationOpen = JSON.parse(localStorage.getItem("regOpen")) ?? true;
+if (!registrationOpen) {
+  registrationCard.style.display = "none";
+  closedMsg.classList.remove("d-none");
+  gotoHome.style.display = "block";
+}
 
-    const newMember = {
-      id: Date.now().toString(),
-      fullName: document.getElementById("fullName").value.trim(),
-      phone: document.getElementById("phone").value.trim(),
-      email: document.getElementById("email").value.trim(),
-      gender: document.getElementById("gender").value
-    };
+roleSelect.addEventListener("change", () => {
+  if (roleSelect.value === "Others") {
+    otherRoleDiv.style.display = "block";
+    otherRoleInput.required = true;
+  } else {
+    otherRoleDiv.style.display = "none";
+    otherRoleInput.required = false;
+    otherRoleInput.value = "";
+  }
+});
 
-    members.push(newMember);
-    localStorage.setItem("members", JSON.stringify(members));
+form.addEventListener("submit", e => {
+  e.preventDefault();
+  if(!registrationOpen) return alert("Registration is closed.");
 
-    successMsg.classList.remove("d-none");
-    form.reset();
-  });
+  let members = JSON.parse(localStorage.getItem("members")) || [];
+  const phoneVal = document.getElementById("phone").value.trim();
+  if (members.some(m => m.phone === phoneVal)) {
+    alert("Phone number already exists.");
+    return;
+  }
+
+  let role = roleSelect.value;
+  if (role === "Others") role = otherRoleInput.value.trim();
+
+  const newMember = {
+    id: Date.now().toString(),
+    fullName: document.getElementById("fullName").value.trim(),
+    phone: phoneVal,
+    email: document.getElementById("email").value.trim(),
+    gender: document.getElementById("gender").value,
+    role: role
+  };
+
+  members.push(newMember);
+  localStorage.setItem("members", JSON.stringify(members));
+
+  successMsg.classList.remove("d-none");
+  form.reset();
+  otherRoleDiv.style.display = "none";
+  gotoHome.style.display = "block";
+});
+gotoHome.onclick = () => window.location.href = "index.html";
 </script>
-
 </body>
 </html>
