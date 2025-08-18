@@ -3,32 +3,108 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Grace Fellowship Church</title>
+<title>Top Ministries International</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <style>
-  body { background-color: #f8f9fa; min-height: 100vh; display: flex; flex-direction: column; }
-  header { background-color: #007bff; color: white; padding: 1rem 0; position: fixed; width: 100%; top: 0; z-index: 1000; }
-  header img { height: 50px; margin-right: 1rem; }
-  main { flex: 1; padding-top: 120px; }
-  footer { background-color: #343a40; color: white; padding: 1rem 0; text-align: center; margin-top: auto; }
-  .card { margin-bottom: 1.5rem; }
-  .fade-out { opacity: 0; transition: opacity 2s; }
+  /* Make body a flex column layout for sticky footer */
+  body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    margin: 0;
+    background-color: #f8f9fa;
+
+  header {
+    background-color: #f71717;
+    color: white;
+    padding: 1rem;
+    position: fixed;
+    width: 100%;
+    top: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    transition: all 0.3s ease; /* Smooth transition on scroll */
+  }
+  header.shrink {
+    padding: 0.5rem 1rem; /* Reduce padding when scrolling */
+  }
+  header img {
+    height: 50px;
+    margin-right: 0.5rem;
+    transition: all 0.3s ease;
+  }
+  header.shrink img {
+    height: 35px; /* Shrink logo */
+  }
+  header h3 {
+    margin: 0;
+    font-size: 1.5rem;
+    text-align: center;
+    transition: all 0.3s ease;
+  }
+  header.shrink h3 {
+    font-size: 1.2rem; /* Shrink title */
+  }
+
+  /* Main content spacing for fixed header */
+main {
+    flex: 1 0 auto; /* Take available space */
+    padding-top: 120px; /* Space for fixed header */
+  }
+
+  /* Footer grows with content */
+  footer {
+    flex-shrink: 0; /* Prevent shrinking */
+    background-color: #343a40;
+    color: white;
+    padding: 1rem;
+    text-align: center;
+  }
+/* Optional: Add some spacing on small screens */
+  @media(max-width: 576px) {
+    main { padding: 100px 1rem 1rem; }
+  }
+
+  /* Card spacing */
+  .card { 
+    margin-bottom: 1.5rem; 
+  }
+
+  /* Fade out messages */
+  .fade-out { 
+    opacity: 0; 
+    transition: opacity 2s; 
+  }
+
+  /* Responsive search bar */
+  @media(max-width: 576px) {
+    .d-flex { 
+      flex-direction: column; 
+    }
+    .d-flex input, .d-flex button {
+      width: 100%; 
+      margin-bottom: 0.5rem; 
+    }
+  }
 </style>
 </head>
 <body>
 
 <!-- Header -->
-<header class="d-flex align-items-center justify-content-center">
-  <img src="church-logo.png" alt="Church Logo">
-  <h3 class="m-0">Grace Fellowship Church</h3>
+<header>
+  <img src="images/download.png" alt="Church Logo">
+  <h3>Top Ministries International</h3>
 </header>
 
 <!-- Main Content -->
-<main class="container mt-4">
-  <h2 class="mb-3 text-center">Welcome to Grace Fellowship Church</h2>
+<main class="container">
+  <h2 class="mb-3 text-center">Welcome to Top Ministries International</h2>
   <p class="text-center">Search for members by name or phone number.</p>
 
-  <!-- Search Bar with Button -->
+  <!-- Search Bar -->
   <div class="mb-3 d-flex">
     <input type="text" id="searchInput" class="form-control me-2" placeholder="Search by member name or phone...">
     <button id="searchBtn" class="btn btn-primary">Search</button>
@@ -39,7 +115,7 @@
   <!-- Attendance Form -->
   <form id="attendanceForm" class="mb-3">
     <input type="text" id="phone" class="form-control mb-2" placeholder="Enter your phone number">
-    <button type="submit" class="btn btn-primary">Submit Attendance</button>
+    <button type="submit" class="btn btn-primary w-100">Submit Attendance</button>
     <div id="msgBox" class="mt-2"></div>
   </form>
 
@@ -56,7 +132,8 @@
 
 <!-- Footer -->
 <footer>
-  &copy; 2025 Grace Fellowship Church. All Rights Reserved. | Contact: info@gracefellowship.com | Phone: +233 123 456 789
+  &copy; <span id="year"></span> Top Ministries International. All Rights Reserved. | 
+  Contact: info@topministries.com
 </footer>
 
 <!-- Attendance Confirmation Modal -->
@@ -74,118 +151,56 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-let members = JSON.parse(localStorage.getItem("members")) || [];
-const memberList = document.getElementById("memberList");
-const searchInput = document.getElementById("searchInput");
+  let members = JSON.parse(localStorage.getItem("members")) || [];
+  const memberList = document.getElementById("memberList");
+  const searchInput = document.getElementById("searchInput");
+  const attendanceDate = localStorage.getItem("attendanceDate");
+  const attendanceTime = localStorage.getItem("attendanceTime");
 
-// Admin-set date & time
-const attendanceDate = localStorage.getItem("attendanceDate");
-const attendanceTime = localStorage.getItem("attendanceTime");
+  function renderMembers(filter = "") {
+    memberList.innerHTML = "";
+    if(!filter) return;
 
-// --- Render Members ---
-function renderMembers(filter = "") {
-  memberList.innerHTML = "";
-  if(!filter) return; // Do not show anything if search is empty
+    const filtered = members.filter(m => 
+      m.fullName.toLowerCase().includes(filter.toLowerCase()) || 
+      m.phone.includes(filter)
+    );
 
-  const filtered = members.filter(m => 
-    m.fullName.toLowerCase().includes(filter.toLowerCase()) || 
-    m.phone.includes(filter)
-  );
+    if(!filtered.length) {
+      const noResult = document.createElement("div");
+      noResult.className = "alert alert-warning";
+      noResult.textContent = "⚠️ No members found matching your search.";
+      memberList.appendChild(noResult);
+      setTimeout(() => { noResult.remove(); }, 5000);
+      return;
+    }
 
-  if(!filtered.length) {
-    const noResult = document.createElement("div");
-    noResult.className = "alert alert-warning";
-    noResult.textContent = "⚠️ No members found matching your search.";
-    memberList.appendChild(noResult);
-    setTimeout(() => { noResult.remove(); }, 5000); // auto-hide after 5 seconds
-    return;
+    filtered.forEach(m => {
+      const card = document.createElement("div");
+      card.className = "card shadow-sm mb-2";
+      card.innerHTML = `<div class="card-body"><strong>${m.fullName}</strong> - ${m.phone}</div>`;
+      memberList.appendChild(card);
+      setTimeout(() => { card.remove(); }, 5000);
+    });
+
+    setTimeout(() => { searchInput.value = ""; }, 5000);
   }
 
-  filtered.forEach(m => {
-    const card = document.createElement("div");
-    card.className = "card shadow-sm mb-2";
-    card.innerHTML = `<div class="card-body"><strong>${m.fullName}</strong> - ${m.phone}</div>`;
-    memberList.appendChild(card);
-    setTimeout(() => { card.remove(); }, 5000);
+  document.getElementById("searchBtn").addEventListener("click", () => {
+    const filter = searchInput.value.trim();
+    renderMembers(filter);
   });
 
-  setTimeout(() => { searchInput.value = ""; }, 5000);
-}
-
-// --- Search Button ---
-document.getElementById("searchBtn").addEventListener("click", () => {
-  const filter = searchInput.value.trim();
-  renderMembers(filter);
-});
-
-// --- Enter key triggers search ---
-searchInput.addEventListener("keypress", function(e) {
-  if(e.key === "Enter") {
-    e.preventDefault();
-    document.getElementById("searchBtn").click();
-  }
-});
-
-// --- Mark Attendance (Prompt Button) ---
-document.getElementById("markAttendanceBtn").addEventListener("click", () => {
-  if(!attendanceDate || !attendanceTime){
-    alert("Attendance is not open yet.");
-    return;
-  }
-
-  const now = new Date();
-  const currentDate = now.toISOString().split("T")[0]; 
-  const currentTime = now.toTimeString().slice(0,5); 
-
-  if(currentDate !== attendanceDate){
-    alert(`Attendance is only open on ${attendanceDate}.`);
-    return;
-  }
-  if(currentTime < attendanceTime){
-    alert(`Attendance will open at ${attendanceTime}.`);
-    return;
-  }
-
-  const phone = prompt("Enter your phone number to mark attendance:");
-  if(!phone) return;
-
-  const member = members.find(m => m.phone === phone.trim());
-  if(!member){
-    alert("Phone number not found. Please register first.");
-    return;
-  }
-
-  let attendanceRecords = JSON.parse(localStorage.getItem("attendanceRecords")) || [];
-  attendanceRecords.push({
-    name: member.fullName,
-    phone: member.phone,
-    date: attendanceDate,
-    time: currentTime,
-    status: "Present"
+  searchInput.addEventListener("keypress", function(e){
+    if(e.key === "Enter"){
+      e.preventDefault();
+      document.getElementById("searchBtn").click();
+    }
   });
-  localStorage.setItem("attendanceRecords", JSON.stringify(attendanceRecords));
 
-  const modalBody = document.getElementById("modalBody");
-  modalBody.innerHTML = `
-    <p>✅ <strong>${member.fullName}</strong>, your attendance was marked successfully.</p>
-    <p>Date: <strong>${attendanceDate}</strong></p>
-    <p>Time: <strong>${currentTime}</strong></p>
-  `;
-  const attendanceModal = new bootstrap.Modal(document.getElementById("attendanceModal"));
-  attendanceModal.show();
-  setTimeout(() => attendanceModal.hide(), 4000);
-});
-
-// --- Attendance Form Submission ---
-const attendanceForm = document.getElementById("attendanceForm");
-if(attendanceForm){
-  attendanceForm.addEventListener("submit", function(e){
-    e.preventDefault();
-    const phone = document.getElementById("phone").value.trim();
-    const msgBox = document.getElementById("msgBox");
-
+  document.getElementById("markAttendanceBtn").addEventListener("click", () => {
     if(!attendanceDate || !attendanceTime){
-      msgBox.innerHTML = `<span class="text-danger">Attendance not opened yet. Please check later.</span>`;
+      alert("Attendance is not open yet.");
       return;
     }
 
@@ -194,35 +209,105 @@ if(attendanceForm){
     const currentTime = now.toTimeString().slice(0,5); 
 
     if(currentDate !== attendanceDate){
-      msgBox.innerHTML = `<span class="text-danger">Attendance is only open on ${attendanceDate}.</span>`;
+      alert(`Attendance is only open on ${attendanceDate}.`);
       return;
     }
     if(currentTime < attendanceTime){
-      msgBox.innerHTML = `<span class="text-danger">Attendance will open at ${attendanceTime}.</span>`;
+      alert(`Attendance will open at ${attendanceTime}.`);
       return;
     }
 
-    const member = members.find(m => m.phone === phone);
-    if(member){
-      let attendanceRecords = JSON.parse(localStorage.getItem("attendanceRecords")) || [];
-      attendanceRecords.push({
-        name: member.fullName,
-        phone: member.phone,
-        date: attendanceDate,
-        time: currentTime,
-        status: "Present"
-      });
-      localStorage.setItem("attendanceRecords", JSON.stringify(attendanceRecords));
-      msgBox.innerHTML = `<span class="text-success">✅ Attendance marked successfully for ${member.fullName}</span>`;
-      setTimeout(()=>{ msgBox.classList.add("fade-out"); }, 3000);
-      setTimeout(()=>{ msgBox.innerHTML=""; msgBox.classList.remove("fade-out"); }, 5000);
-    } else {
-      msgBox.innerHTML = `<span class="text-danger">Not registered! Please register first.</span>`;
+    const phone = prompt("Enter your phone number to mark attendance:");
+    if(!phone) return;
+
+    const member = members.find(m => m.phone === phone.trim());
+    if(!member){
+      alert("Phone number not found. Please register first.");
+      return;
     }
 
-    attendanceForm.reset();
+    let attendanceRecords = JSON.parse(localStorage.getItem("attendanceRecords")) || [];
+    attendanceRecords.push({
+      name: member.fullName,
+      phone: member.phone,
+      date: attendanceDate,
+      time: currentTime,
+      status: "Present"
+    });
+    localStorage.setItem("attendanceRecords", JSON.stringify(attendanceRecords));
+
+    const modalBody = document.getElementById("modalBody");
+    modalBody.innerHTML = `
+      <p>✅ <strong>${member.fullName}</strong>, your attendance was marked successfully.</p>
+      <p>Date: <strong>${attendanceDate}</strong></p>
+      <p>Time: <strong>${currentTime}</strong></p>
+    `;
+    const attendanceModal = new bootstrap.Modal(document.getElementById("attendanceModal"));
+    attendanceModal.show();
+    setTimeout(() => attendanceModal.hide(), 4000);
   });
-}
+
+  const attendanceForm = document.getElementById("attendanceForm");
+  if(attendanceForm){
+    attendanceForm.addEventListener("submit", function(e){
+      e.preventDefault();
+      const phone = document.getElementById("phone").value.trim();
+      const msgBox = document.getElementById("msgBox");
+
+      if(!attendanceDate || !attendanceTime){
+        msgBox.innerHTML = `<span class="text-danger">Attendance not opened yet. Please check later.</span>`;
+        return;
+      }
+
+      const now = new Date();
+      const currentDate = now.toISOString().split("T")[0]; 
+      const currentTime = now.toTimeString().slice(0,5); 
+
+      if(currentDate !== attendanceDate){
+        msgBox.innerHTML = `<span class="text-danger">Attendance is only open on ${attendanceDate}.</span>`;
+        return;
+      }
+      if(currentTime < attendanceTime){
+        msgBox.innerHTML = `<span class="text-danger">Attendance will open at ${attendanceTime}.</span>`;
+        return;
+      }
+
+      const member = members.find(m => m.phone === phone);
+      if(member){
+        let attendanceRecords = JSON.parse(localStorage.getItem("attendanceRecords")) || [];
+        attendanceRecords.push({
+          name: member.fullName,
+          phone: member.phone,
+          date: attendanceDate,
+          time: currentTime,
+          status: "Present"
+        });
+        localStorage.setItem("attendanceRecords", JSON.stringify(attendanceRecords));
+        msgBox.innerHTML = `<span class="text-success">✅ Attendance marked successfully for ${member.fullName}</span>`;
+        setTimeout(()=>{ msgBox.classList.add("fade-out"); }, 3000);
+        setTimeout(()=>{ msgBox.innerHTML=""; msgBox.classList.remove("fade-out"); }, 5000);
+      } else {
+        msgBox.innerHTML = `<span class="text-danger">Not registered! Please register first.</span>`;
+      }
+
+      attendanceForm.reset();
+    });
+
+     // Shrink header on scroll
+  window.addEventListener("scroll", function() {
+    const header = document.querySelector("header");
+    if(window.scrollY > 50) {
+      header.classList.add("shrink");
+    } else {
+      header.classList.remove("shrink");
+    }
+  });
+  }
 </script>
+<script>
+  // Automatically set the current year in footer
+  document.getElementById("year").textContent = new Date().getFullYear();
+</script>
+
 </body>
 </html>
