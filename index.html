@@ -12,6 +12,7 @@
   main { flex: 1; padding-top: 120px; }
   footer { background-color: #343a40; color: white; padding: 1rem 0; text-align: center; margin-top: auto; }
   .card { margin-bottom: 1.5rem; }
+  .fade-out { opacity: 0; transition: opacity 2s; }
 </style>
 </head>
 <body>
@@ -27,12 +28,20 @@
   <h2 class="mb-3 text-center">Welcome to Grace Fellowship Church</h2>
   <p class="text-center">Search for members by name or phone number.</p>
 
-  <!-- Search Bar -->
-  <div class="mb-3">
-    <input type="text" id="searchInput" class="form-control" placeholder="Search by member name or phone...">
+  <!-- Search Bar with Button -->
+  <div class="mb-3 d-flex">
+    <input type="text" id="searchInput" class="form-control me-2" placeholder="Search by member name or phone...">
+    <button id="searchBtn" class="btn btn-primary">Search</button>
   </div>
 
   <div id="memberList"></div>
+
+  <!-- Attendance Form -->
+  <form id="attendanceForm" class="mb-3">
+    <input type="text" id="phone" class="form-control mb-2" placeholder="Enter your phone number">
+    <button type="submit" class="btn btn-primary">Submit Attendance</button>
+    <div id="msgBox" class="mt-2"></div>
+  </form>
 
   <!-- Quick Links -->
   <div class="card text-center shadow-sm mt-3">
@@ -69,35 +78,74 @@ let members = JSON.parse(localStorage.getItem("members")) || [];
 const memberList = document.getElementById("memberList");
 const searchInput = document.getElementById("searchInput");
 
-// --- Render Members (Quick Search Only, Auto-hide) ---
+// Admin-set date & time
+const attendanceDate = localStorage.getItem("attendanceDate");
+const attendanceTime = localStorage.getItem("attendanceTime");
+
+// --- Render Members ---
 function renderMembers(filter = "") {
   memberList.innerHTML = "";
-  if(!members.length) return;
+  if(!filter) return; // Do not show anything if search is empty
 
   const filtered = members.filter(m => 
     m.fullName.toLowerCase().includes(filter.toLowerCase()) || 
     m.phone.includes(filter)
   );
 
-  if(!filtered.length) return;
+  if(!filtered.length) {
+    const noResult = document.createElement("div");
+    noResult.className = "alert alert-warning";
+    noResult.textContent = "⚠️ No members found matching your search.";
+    memberList.appendChild(noResult);
+    setTimeout(() => { noResult.remove(); }, 5000); // auto-hide after 5 seconds
+    return;
+  }
 
   filtered.forEach(m => {
     const card = document.createElement("div");
     card.className = "card shadow-sm mb-2";
     card.innerHTML = `<div class="card-body"><strong>${m.fullName}</strong> - ${m.phone}</div>`;
     memberList.appendChild(card);
-
-    // Auto-hide after 5 seconds
     setTimeout(() => { card.remove(); }, 5000);
   });
 
-  // Clear search input after 5 seconds
   setTimeout(() => { searchInput.value = ""; }, 5000);
 }
-searchInput.addEventListener("input", e => renderMembers(e.target.value));
 
-// --- User Attendance ---
+// --- Search Button ---
+document.getElementById("searchBtn").addEventListener("click", () => {
+  const filter = searchInput.value.trim();
+  renderMembers(filter);
+});
+
+// --- Enter key triggers search ---
+searchInput.addEventListener("keypress", function(e) {
+  if(e.key === "Enter") {
+    e.preventDefault();
+    document.getElementById("searchBtn").click();
+  }
+});
+
+// --- Mark Attendance (Prompt Button) ---
 document.getElementById("markAttendanceBtn").addEventListener("click", () => {
+  if(!attendanceDate || !attendanceTime){
+    alert("Attendance is not open yet.");
+    return;
+  }
+
+  const now = new Date();
+  const currentDate = now.toISOString().split("T")[0]; 
+  const currentTime = now.toTimeString().slice(0,5); 
+
+  if(currentDate !== attendanceDate){
+    alert(`Attendance is only open on ${attendanceDate}.`);
+    return;
+  }
+  if(currentTime < attendanceTime){
+    alert(`Attendance will open at ${attendanceTime}.`);
+    return;
+  }
+
   const phone = prompt("Enter your phone number to mark attendance:");
   if(!phone) return;
 
@@ -108,105 +156,73 @@ document.getElementById("markAttendanceBtn").addEventListener("click", () => {
   }
 
   let attendanceRecords = JSON.parse(localStorage.getItem("attendanceRecords")) || [];
-  if(attendanceRecords.length === 0){
-    alert("Attendance is not open yet. Please check back later.");
-    return;
-  }
-
-  const latestRecord = attendanceRecords[attendanceRecords.length - 1]; 
-  const alreadyMarked = latestRecord.records.find(r => r.memberId === member.id);
-
-  if(alreadyMarked && alreadyMarked.status === "Present"){
-    alert("You have already marked your attendance for today.");
-    return;
-  }
-
-  if(!alreadyMarked){
-    latestRecord.records.push({
-      memberId: member.id,
-      name: member.fullName,
-      phone: member.phone,
-      status: "Present"
-    });
-  } else {
-    alreadyMarked.status = "Present";
-  }
-
+  attendanceRecords.push({
+    name: member.fullName,
+    phone: member.phone,
+    date: attendanceDate,
+    time: currentTime,
+    status: "Present"
+  });
   localStorage.setItem("attendanceRecords", JSON.stringify(attendanceRecords));
 
-  // Show modal success message
   const modalBody = document.getElementById("modalBody");
   modalBody.innerHTML = `
     <p>✅ <strong>${member.fullName}</strong>, your attendance was marked successfully.</p>
-    <p>Date: <strong>${latestRecord.date}</strong></p>
-    <p>Time: <strong>${latestRecord.time}</strong></p>
+    <p>Date: <strong>${attendanceDate}</strong></p>
+    <p>Time: <strong>${currentTime}</strong></p>
   `;
   const attendanceModal = new bootstrap.Modal(document.getElementById("attendanceModal"));
   attendanceModal.show();
-
-  // Auto-hide modal after 4 seconds
   setTimeout(() => attendanceModal.hide(), 4000);
 });
 
-// Load admin set date & time
-const attendanceDate = localStorage.getItem("attendanceDate");
-const attendanceTime = localStorage.getItem("attendanceTime");
+// --- Attendance Form Submission ---
+const attendanceForm = document.getElementById("attendanceForm");
+if(attendanceForm){
+  attendanceForm.addEventListener("submit", function(e){
+    e.preventDefault();
+    const phone = document.getElementById("phone").value.trim();
+    const msgBox = document.getElementById("msgBox");
 
-document.getElementById("attendanceForm").addEventListener("submit", function(e){
-  e.preventDefault();
-  const phone = document.getElementById("phone").value.trim();
-  const msgBox = document.getElementById("msgBox");
+    if(!attendanceDate || !attendanceTime){
+      msgBox.innerHTML = `<span class="text-danger">Attendance not opened yet. Please check later.</span>`;
+      return;
+    }
 
-  // check if admin set date & time
-  if(!attendanceDate || !attendanceTime){
-    msgBox.innerHTML = `<span class="text-danger">Attendance not opened yet. Please check later.</span>`;
-    return;
-  }
+    const now = new Date();
+    const currentDate = now.toISOString().split("T")[0]; 
+    const currentTime = now.toTimeString().slice(0,5); 
 
-  // compare current date/time with admin date/time
-  const now = new Date();
-  const currentDate = now.toISOString().split("T")[0]; 
-  const currentTime = now.toTimeString().slice(0,5); 
+    if(currentDate !== attendanceDate){
+      msgBox.innerHTML = `<span class="text-danger">Attendance is only open on ${attendanceDate}.</span>`;
+      return;
+    }
+    if(currentTime < attendanceTime){
+      msgBox.innerHTML = `<span class="text-danger">Attendance will open at ${attendanceTime}.</span>`;
+      return;
+    }
 
-  if(currentDate !== attendanceDate){
-    msgBox.innerHTML = `<span class="text-danger">Attendance is only open on ${attendanceDate}.</span>`;
-    return;
-  }
-  if(currentTime < attendanceTime){
-    msgBox.innerHTML = `<span class="text-danger">Attendance will open at ${attendanceTime}.</span>`;
-    return;
-  }
+    const member = members.find(m => m.phone === phone);
+    if(member){
+      let attendanceRecords = JSON.parse(localStorage.getItem("attendanceRecords")) || [];
+      attendanceRecords.push({
+        name: member.fullName,
+        phone: member.phone,
+        date: attendanceDate,
+        time: currentTime,
+        status: "Present"
+      });
+      localStorage.setItem("attendanceRecords", JSON.stringify(attendanceRecords));
+      msgBox.innerHTML = `<span class="text-success">✅ Attendance marked successfully for ${member.fullName}</span>`;
+      setTimeout(()=>{ msgBox.classList.add("fade-out"); }, 3000);
+      setTimeout(()=>{ msgBox.innerHTML=""; msgBox.classList.remove("fade-out"); }, 5000);
+    } else {
+      msgBox.innerHTML = `<span class="text-danger">Not registered! Please register first.</span>`;
+    }
 
-  // ✅ Passed checks → find member
-  const members = JSON.parse(localStorage.getItem("members")) || [];
-  const attendanceRecords = JSON.parse(localStorage.getItem("attendanceRecords")) || [];
-  const member = members.find(m => m.phone === phone);
-
-  if(member){
-    // mark attendance
-    const record = {
-      name: member.name,
-      phone: member.phone,
-      date: attendanceDate,
-      time: currentTime,
-      status: "Present"
-    };
-    attendanceRecords.push(record);
-    localStorage.setItem("attendanceRecords", JSON.stringify(attendanceRecords));
-
-    msgBox.innerHTML = `<span class="text-success">✅ Attendance marked successfully for ${member.name}</span>`;
-
-    setTimeout(()=>{ msgBox.classList.add("fade-out"); }, 3000);
-    setTimeout(()=>{ msgBox.innerHTML=""; msgBox.classList.remove("fade-out"); }, 5000);
-
-  } else {
-    msgBox.innerHTML = `<span class="text-danger">Not registered! Please register first.</span>`;
-  }
-
-  document.getElementById("attendanceForm").reset();
-});
-
+    attendanceForm.reset();
+  });
+}
 </script>
-
 </body>
 </html>
