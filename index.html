@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grace Fellowship Church</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+  body { background-color: #f8f9fa; min-height: 100vh; display: flex; flex-direction: column; }
+  header { background-color: #007bff; color: white; padding: 1rem 0; position: fixed; width: 100%; top: 0; z-index: 1000; }
+  header img { height: 50px; margin-right: 1rem; }
+  main { flex: 1; padding-top: 120px; }
+  footer { background-color: #343a40; color: white; padding: 1rem 0; text-align: center; margin-top: auto; }
+  .card { margin-bottom: 1.5rem; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="d-flex align-items-center justify-content-center">
+  <img src="church-logo.png" alt="Church Logo">
+  <h3 class="m-0">Grace Fellowship Church</h3>
+</header>
+
+<!-- Main Content -->
+<main class="container mt-4">
+  <h2 class="mb-3 text-center">Welcome to Grace Fellowship Church</h2>
+  <p class="text-center">Search for members by name or phone number.</p>
+
+  <!-- Search Bar -->
+  <div class="mb-3">
+    <input type="text" id="searchInput" class="form-control" placeholder="Search by member name or phone...">
+  </div>
+
+  <div id="memberList"></div>
+
+  <!-- Quick Links -->
+  <div class="card text-center shadow-sm mt-3">
+    <div class="card-body">
+      <h5>Quick Access</h5>
+      <a href="registration.html" class="btn btn-success m-1">Register</a>
+      <a href="login.html" class="btn btn-success m-1">Login</a>
+      <button id="markAttendanceBtn" class="btn btn-info m-1">Mark Attendance</button>
+    </div>
+  </div>
+</main>
+
+<!-- Footer -->
+<footer>
+  &copy; 2025 Grace Fellowship Church. All Rights Reserved. | Contact: info@gracefellowship.com | Phone: +233 123 456 789
+</footer>
+
+<!-- Attendance Confirmation Modal -->
+<div class="modal fade" id="attendanceModal" tabindex="-1" aria-labelledby="attendanceModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title" id="attendanceModalLabel">Attendance Marked</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+let members = JSON.parse(localStorage.getItem("members")) || [];
+const memberList = document.getElementById("memberList");
+const searchInput = document.getElementById("searchInput");
+
+// --- Render Members (Quick Search Only, Auto-hide) ---
+function renderMembers(filter = "") {
+  memberList.innerHTML = "";
+  if(!members.length) return;
+
+  const filtered = members.filter(m => 
+    m.fullName.toLowerCase().includes(filter.toLowerCase()) || 
+    m.phone.includes(filter)
+  );
+
+  if(!filtered.length) return;
+
+  filtered.forEach(m => {
+    const card = document.createElement("div");
+    card.className = "card shadow-sm mb-2";
+    card.innerHTML = `<div class="card-body"><strong>${m.fullName}</strong> - ${m.phone}</div>`;
+    memberList.appendChild(card);
+
+    // Auto-hide after 5 seconds
+    setTimeout(() => { card.remove(); }, 5000);
+  });
+
+  // Clear search input after 5 seconds
+  setTimeout(() => { searchInput.value = ""; }, 5000);
+}
+searchInput.addEventListener("input", e => renderMembers(e.target.value));
+
+// --- User Attendance ---
+document.getElementById("markAttendanceBtn").addEventListener("click", () => {
+  const phone = prompt("Enter your phone number to mark attendance:");
+  if(!phone) return;
+
+  const member = members.find(m => m.phone === phone.trim());
+  if(!member){
+    alert("Phone number not found. Please register first.");
+    return;
+  }
+
+  let attendanceRecords = JSON.parse(localStorage.getItem("attendanceRecords")) || [];
+  if(attendanceRecords.length === 0){
+    alert("Attendance is not open yet. Please check back later.");
+    return;
+  }
+
+  const latestRecord = attendanceRecords[attendanceRecords.length - 1]; 
+  const alreadyMarked = latestRecord.records.find(r => r.memberId === member.id);
+
+  if(alreadyMarked && alreadyMarked.status === "Present"){
+    alert("You have already marked your attendance for today.");
+    return;
+  }
+
+  if(!alreadyMarked){
+    latestRecord.records.push({
+      memberId: member.id,
+      name: member.fullName,
+      phone: member.phone,
+      status: "Present"
+    });
+  } else {
+    alreadyMarked.status = "Present";
+  }
+
+  localStorage.setItem("attendanceRecords", JSON.stringify(attendanceRecords));
+
+  // Show modal success message
+  const modalBody = document.getElementById("modalBody");
+  modalBody.innerHTML = `
+    <p>✅ <strong>${member.fullName}</strong>, your attendance was marked successfully.</p>
+    <p>Date: <strong>${latestRecord.date}</strong></p>
+    <p>Time: <strong>${latestRecord.time}</strong></p>
+  `;
+  const attendanceModal = new bootstrap.Modal(document.getElementById("attendanceModal"));
+  attendanceModal.show();
+
+  // Auto-hide modal after 4 seconds
+  setTimeout(() => attendanceModal.hide(), 4000);
+});
+
+// Load admin set date & time
+const attendanceDate = localStorage.getItem("attendanceDate");
+const attendanceTime = localStorage.getItem("attendanceTime");
+
+document.getElementById("attendanceForm").addEventListener("submit", function(e){
+  e.preventDefault();
+  const phone = document.getElementById("phone").value.trim();
+  const msgBox = document.getElementById("msgBox");
+
+  // check if admin set date & time
+  if(!attendanceDate || !attendanceTime){
+    msgBox.innerHTML = `<span class="text-danger">Attendance not opened yet. Please check later.</span>`;
+    return;
+  }
+
+  // compare current date/time with admin date/time
+  const now = new Date();
+  const currentDate = now.toISOString().split("T")[0]; 
+  const currentTime = now.toTimeString().slice(0,5); 
+
+  if(currentDate !== attendanceDate){
+    msgBox.innerHTML = `<span class="text-danger">Attendance is only open on ${attendanceDate}.</span>`;
+    return;
+  }
+  if(currentTime < attendanceTime){
+    msgBox.innerHTML = `<span class="text-danger">Attendance will open at ${attendanceTime}.</span>`;
+    return;
+  }
+
+  // ✅ Passed checks → find member
+  const members = JSON.parse(localStorage.getItem("members")) || [];
+  const attendanceRecords = JSON.parse(localStorage.getItem("attendanceRecords")) || [];
+  const member = members.find(m => m.phone === phone);
+
+  if(member){
+    // mark attendance
+    const record = {
+      name: member.name,
+      phone: member.phone,
+      date: attendanceDate,
+      time: currentTime,
+      status: "Present"
+    };
+    attendanceRecords.push(record);
+    localStorage.setItem("attendanceRecords", JSON.stringify(attendanceRecords));
+
+    msgBox.innerHTML = `<span class="text-success">✅ Attendance marked successfully for ${member.name}</span>`;
+
+    setTimeout(()=>{ msgBox.classList.add("fade-out"); }, 3000);
+    setTimeout(()=>{ msgBox.innerHTML=""; msgBox.classList.remove("fade-out"); }, 5000);
+
+  } else {
+    msgBox.innerHTML = `<span class="text-danger">Not registered! Please register first.</span>`;
+  }
+
+  document.getElementById("attendanceForm").reset();
+});
+
+</script>
+
+</body>
+</html>

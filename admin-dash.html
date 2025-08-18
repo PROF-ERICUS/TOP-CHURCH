@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard - Grace Fellowship Church</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+  body { background-color: #f8f9fa; min-height: 100vh; display: flex; flex-direction: column; }
+  header { background-color: #007bff; color: white; padding: 1rem 0; position: fixed; width: 100%; top: 0; z-index: 1000; }
+  header img { height: 50px; margin-right: 1rem; }
+  main { flex: 1; padding-top: 120px; }
+  footer { background-color: #343a40; color: white; padding: 1rem 0; text-align: center; }
+  .card { margin-bottom: 1.5rem; }
+  .absent { background-color: #f8d7da; }
+</style>
+</head>
+<body>
+
+<header class="d-flex align-items-center justify-content-center">
+  <img src="church-logo.png" alt="Church Logo">
+  <h3 class="m-0">Admin Dashboard</h3>
+  <button class="btn btn-danger ms-3" onclick="logout()">Logout</button>
+</header>
+
+<main class="container mt-4">
+  <h2 class="mb-3 text-center">Members Management</h2>
+
+  <!-- Add/Edit Member Form -->
+  <div class="card">
+    <div class="card-header bg-primary text-white">Add / Edit Member</div>
+    <div class="card-body">
+      <form id="memberForm">
+        <input type="hidden" id="editId">
+        <div class="row g-3">
+          <div class="col-md-6 col-12">
+            <label class="form-label">Full Name</label>
+            <input type="text" class="form-control" id="fullName" required>
+          </div>
+          <div class="col-md-6 col-12">
+            <label class="form-label">Phone Number</label>
+            <input type="text" class="form-control" id="phone" required>
+          </div>
+          <div class="col-md-6 col-12">
+            <label class="form-label">Email (optional)</label>
+            <input type="email" class="form-control" id="email">
+          </div>
+          <div class="col-md-3 col-6">
+            <label class="form-label">Gender</label>
+            <select class="form-select" id="gender" required>
+              <option value="">Choose...</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+            </select>
+          </div>
+        </div>
+        <div class="mt-3">
+          <button type="submit" class="btn btn-success" id="saveBtn">Save Member</button>
+          <button type="button" class="btn btn-secondary d-none" id="cancelEdit">Cancel Edit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Search Members -->
+  <div class="mb-3">
+    <input type="text" id="searchAdmin" class="form-control" placeholder="Search members by name or phone...">
+  </div>
+
+  <!-- Members Table -->
+  <div class="card">
+    <div class="card-body table-responsive">
+      <table class="table table-striped table-bordered" id="adminMembersTable">
+        <thead class="table-dark">
+          <tr>
+            <th>#</th>
+            <th>Full Name</th>
+            <th>Phone</th>
+            <th>Email</th>
+            <th>Gender</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Attendance Section -->
+  <div class="card">
+    <div class="card-header bg-success text-white">Open Attendance</div>
+    <div class="card-body">
+      <form id="attendanceForm" class="mb-3">
+        <div class="row g-3 align-items-end">
+          <div class="col-md-4 col-12">
+            <label class="form-label">Select Date</label>
+            <input type="date" class="form-control" id="attendanceDate" required>
+          </div>
+          <div class="col-md-4 col-12">
+            <label class="form-label">Set Time</label>
+            <input type="time" class="form-control" id="attendanceTime" required>
+          </div>
+          <div class="col-md-2 col-12">
+            <button type="submit" class="btn btn-primary">Open Attendance</button>
+          </div>
+        </div>
+      </form>
+
+      <p class="text-muted"><small>Once opened, members can mark attendance using their phone numbers.</small></p>
+    </div>
+  </div>
+
+  <!-- Absentees -->
+  <div class="card">
+    <div class="card-header bg-danger text-white">Members Absent 3+ Times</div>
+    <div class="card-body table-responsive">
+      <table class="table table-striped" id="absentTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Phone</th>
+            <th>Absences</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  &copy; 2025 Grace Fellowship Church. All Rights Reserved.
+</footer>
+
+<script>
+if(localStorage.getItem("isAdmin") !== "true"){
+  window.location.href = "admin-login.html"; // protect dashboard
+}
+
+let members = JSON.parse(localStorage.getItem("members")) || [];
+let attendanceRecords = JSON.parse(localStorage.getItem("attendanceRecords")) || [];
+
+// --- Logout ---
+function logout(){
+  localStorage.removeItem("isAdmin");
+  window.location.href = "admin-login.html";
+}
+
+// --- Member Management ---
+const tbody = document.querySelector("#adminMembersTable tbody");
+const searchAdmin = document.getElementById("searchAdmin");
+const memberForm = document.getElementById("memberForm");
+const cancelEdit = document.getElementById("cancelEdit");
+
+function renderMembers(filter = "") {
+  tbody.innerHTML = "";
+  const filtered = members.filter(m => m.fullName.toLowerCase().includes(filter.toLowerCase()) || m.phone.includes(filter));
+  if(!filtered.length){
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center">No members found.</td></tr>`;
+    return;
+  }
+  filtered.forEach((m,i) => {
+    tbody.innerHTML += `<tr>
+      <td>${i+1}</td>
+      <td>${m.fullName}</td>
+      <td>${m.phone}</td>
+      <td>${m.email || '-'}</td>
+      <td>${m.gender}</td>
+      <td>
+        <button class="btn btn-sm btn-warning editBtn" data-id="${m.id}">Edit</button>
+        <button class="btn btn-sm btn-danger deleteBtn" data-id="${m.id}">Delete</button>
+      </td>
+    </tr>`;
+  });
+  renderAbsentees();
+}
+searchAdmin.addEventListener("input", e => renderMembers(e.target.value));
+
+memberForm.addEventListener("submit", e => {
+  e.preventDefault();
+  const fullName = document.getElementById("fullName").value.trim();
+  const phone = document.getElementById("phone").value.trim();
+  const email = document.getElementById("email").value.trim();
+  const gender = document.getElementById("gender").value;
+  const editId = document.getElementById("editId").value;
+
+  if(editId){
+    let idx = members.findIndex(m => m.id === editId);
+    members[idx] = { id: editId, fullName, phone, email, gender };
+    cancelEdit.classList.add("d-none");
+  } else {
+    members.push({ id: Date.now().toString(), fullName, phone, email, gender });
+  }
+  localStorage.setItem("members", JSON.stringify(members));
+  memberForm.reset();
+  document.getElementById("editId").value = "";
+  renderMembers();
+});
+cancelEdit.addEventListener("click", () => {
+  memberForm.reset();
+  cancelEdit.classList.add("d-none");
+  document.getElementById("editId").value = "";
+});
+tbody.addEventListener("click", e => {
+  if(e.target.classList.contains("editBtn")){
+    const id = e.target.dataset.id;
+    const member = members.find(m => m.id === id);
+    document.getElementById("fullName").value = member.fullName;
+    document.getElementById("phone").value = member.phone;
+    document.getElementById("email").value = member.email;
+    document.getElementById("gender").value = member.gender;
+    document.getElementById("editId").value = member.id;
+    cancelEdit.classList.remove("d-none");
+  } else if(e.target.classList.contains("deleteBtn")){
+    if(confirm("Delete this member?")){
+      members = members.filter(m => m.id !== e.target.dataset.id);
+      localStorage.setItem("members", JSON.stringify(members));
+      renderMembers();
+    }
+  }
+});
+
+attendanceForm.addEventListener("submit", e => {
+  e.preventDefault();
+  const date = document.getElementById("attendanceDate").value;
+  const time = document.getElementById("attendanceTime").value;
+  if(!date || !time){ 
+    alert("Select both date and time!"); 
+    return; 
+  }
+
+  // Save new attendance session
+  const newSession = { 
+    date, 
+    time, 
+    records: [], 
+    openTime: Date.now() // save timestamp
+  };
+  attendanceRecords.push(newSession);
+  localStorage.setItem("attendanceRecords", JSON.stringify(attendanceRecords));
+
+  // ✅ Save the active session separately
+  localStorage.setItem("activeAttendance", JSON.stringify(newSession));
+
+  alert(`✅ Attendance session opened for ${date} at ${time}`);
+  attendanceForm.reset();
+  renderAbsentees();
+});
+
+  // Create new session for members
+  attendanceRecords.push({ date, time, records: [] });
+  localStorage.setItem("attendanceRecords", JSON.stringify(attendanceRecords));
+
+  alert(`✅ Attendance session opened for ${date} at ${time}`);
+  attendanceForm.reset();
+  renderAbsentees();
+});
+
+// --- Absentees (3+ times) ---
+const absentTable = document.querySelector("#absentTable tbody");
+function renderAbsentees(){
+  const countMap = {};
+  attendanceRecords.forEach(r => {
+    r.records.forEach(a => {
+      if(!countMap[a.memberId]) countMap[a.memberId] = 0;
+      if(a.status === "Absent") countMap[a.memberId]++;
+    });
+  });
+
+  const absentees = members.filter(m => countMap[m.id] >=3);
+  absentTable.innerHTML = "";
+  if(!absentees.length){
+    absentTable.innerHTML = `<tr><td colspan="4" class="text-center">No absentees with 3+ absences.</td></tr>`;
+    return;
+  }
+  absentees.forEach((m,i) => {
+    absentTable.innerHTML += `<tr class="absent">
+      <td>${i+1}</td>
+      <td>${m.fullName}</td>
+      <td>${m.phone}</td>
+      <td>${countMap[m.id]}</td>
+    </tr>`;
+  });
+}
+renderMembers();
+</script>
+
+</body>
+</html>
