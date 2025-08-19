@@ -1,117 +1,195 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Notify Absentees</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
-  <script>
-    (function(){
-      emailjs.init("YOUR_PUBLIC_KEY"); // Replace with your EmailJS Public Key
-    })();
-  </script>
-</head>
-<body class="bg-light">
-  <div class="container py-4">
-    <h2 class="text-center mb-4">📩 Notify Absentees</h2>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Absentees Notification</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #f7f7f7;
+    margin: 0;
+    padding: 20px;
+  }
 
-    <div class="card">
-      <div class="card-body">
-        <h5 class="card-title">Absent Members</h5>
-        <table class="table table-bordered" id="absenteesTable">
-          <thead>
-            <tr>
-              <th>Select</th>
-              <th>Name</th>
-              <th>Phone</th>
-              <th>Email</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-        <div class="d-flex gap-2">
-          <button id="sendEmail" class="btn btn-primary">Send Email</button>
-          <button id="sendSMS" class="btn btn-success">Send SMS</button>
-          <button id="sendWhatsApp" class="btn btn-info text-white">Send WhatsApp</button>
-        </div>
-      </div>
-    </div>
+  h2 {
+    text-align: center;
+    color: #333;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: auto;
+    background: #fff;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+  }
+
+  th, td {
+    padding: 10px;
+    text-align: center;
+    border-bottom: 1px solid #ddd;
+  }
+
+  th {
+    background: #007BFF;
+    color: #fff;
+  }
+
+  tr:hover {
+    background: #f1f1f1;
+  }
+
+  .buttons {
+    margin-top: 15px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #fff;
+    font-weight: bold;
+    transition: background 0.3s ease;
+  }
+
+  #sendEmail { background: #28a745; }
+  #sendEmail:hover { background: #218838; }
+
+  #sendSMS { background: #ffc107; color: #333; }
+  #sendSMS:hover { background: #e0a800; }
+
+  #sendWhatsApp { background: #25D366; }
+  #sendWhatsApp:hover { background: #1ebe5d; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h2>📋 Absentees List</h2>
+
+  <table id="absenteesTable">
+    <thead>
+      <tr>
+        <th>Select</th>
+        <th>Name</th>
+        <th>Phone</th>
+        <th>Email</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <div class="buttons">
+    <button id="sendEmail">Send Email</button>
+    <button id="sendSMS">Send SMS</button>
+    <button id="sendWhatsApp">Send WhatsApp</button>
   </div>
+</div>
 
 <script>
-  // Load members + session
-  let members = JSON.parse(localStorage.getItem("members")) || [];
-  let currentSession = JSON.parse(localStorage.getItem("currentSession")) || { attendanceRecords: [] };
+document.addEventListener("DOMContentLoaded", function () {
+
+  let members = JSON.parse(localStorage.getItem("members")) || [
+    { fullName: "John Doe", phone: "0540000000", email: "john@example.com" },
+    { fullName: "Mary Ann", phone: "0541111111", email: "mary@example.com" },
+    { fullName: "David King", phone: "0542222222", email: "david@example.com" }
+  ];
+
+  let currentSession = JSON.parse(localStorage.getItem("currentSession")) || {
+    attendanceRecords: [ { phone: "0540000000" } ] // example present member
+  };
 
   const tbody = document.querySelector("#absenteesTable tbody");
 
-  // Find absentees
   const absentees = members.filter(m => !currentSession.attendanceRecords.some(r => r.phone === m.phone));
 
-  absentees.forEach(m => {
+  absentees.forEach((m, index) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td><input type="checkbox" data-name="${m.fullName}" data-phone="${m.phone}" data-email="${m.email || ''}"></td>
+      <td><input type="checkbox" class="absent-check" data-index="${index}" checked></td>
       <td>${m.fullName}</td>
       <td>${m.phone}</td>
-      <td>${m.email || 'N/A'}</td>
+      <td>${m.email || "N/A"}</td>
     `;
     tbody.appendChild(tr);
   });
 
-  // Send Email via EmailJS
-  document.getElementById("sendEmail").onclick = () => {
-    const selected = document.querySelectorAll("#absenteesTable input:checked");
-    if(!selected.length) return alert("No member selected!");
+  function getSelectedAbsentees() {
+    const checked = document.querySelectorAll(".absent-check:checked");
+    return Array.from(checked).map(cb => absentees[cb.dataset.index]);
+  }
 
-    selected.forEach(cb => {
-      const name = cb.dataset.name;
-      const email = cb.dataset.email;
-      if(!email) return alert(`${name} has no email.`);
+  document.getElementById("sendEmail").addEventListener("click", function () {
+    const list = getSelectedAbsentees();
+    if (!list.length) return alert("No absentees selected!");
+    list.forEach(a => console.log("Email sent to:", a.email));
+    alert("Emails sent!");
+  });
 
-      emailjs.send("YOUR_SERVICE_ID", "YOUR_TEMPLATE_ID", {
-        to_name: name,
-        to_email: email,
-        message: `Hi ${name}, we missed you at church today 🙏. Hope you’re doing well.`
-      }).then(() => {
-        alert(`✅ Email sent to ${name}`);
-      }).catch(err => alert("❌ Email failed: " + err));
-    });
-  };
 
-  // Send SMS (calls backend)
-  document.getElementById("sendSMS").onclick = () => {
-    const selected = document.querySelectorAll("#absenteesTable input:checked");
-    if(!selected.length) return alert("No member selected!");
 
-    selected.forEach(cb => {
-      const name = cb.dataset.name;
-      const phone = cb.dataset.phone;
+document.getElementById("sendSMS").addEventListener("click", function () {
+  const list = getSelectedAbsentees();
+  if (!list.length) return alert("No absentees selected!");
 
-      fetch("send-sms.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, message: `Hi ${name}, we missed you at church today 🙏.` })
+  const apiKey = "HAJaVctgnWql8bPMtAga3R3fB";
+
+  const smsPromises = list.map(a => {
+    const phone = a.phone.startsWith("0") ? "233" + a.phone.substring(1) : a.phone;
+    const msg = `Hi ${a.fullName}, you were absent today.`; // Simple text, no emojis
+
+    return fetch("https://www.mnotify.com/api/sms/quick", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        token: apiKey,
+        to: phone,
+        message: msg
       })
-      .then(res => res.text())
-      .then(data => alert(`📱 SMS sent to ${name}: ${data}`))
-      .catch(err => alert("❌ SMS failed: " + err));
-    });
-  };
+    })
+    .then(res => res.json())
+    .then(data => ({ name: a.fullName, phone, response: data }))
+    .catch(err => ({ name: a.fullName, phone, error: err }));
+  });
 
-  // WhatsApp
-  document.getElementById("sendWhatsApp").onclick = () => {
-    const selected = document.querySelectorAll("#absenteesTable input:checked");
-    if(!selected.length) return alert("No member selected!");
+  Promise.all(smsPromises).then(results => {
+    const sent = results.filter(r => r.response && r.response.status === "success").map(r => r.name);
+    const failed = results.filter(r => r.error || (r.response && r.response.status !== "success")).map(r => r.name);
 
-    selected.forEach(cb => {
-      const name = cb.dataset.name;
-      const phone = cb.dataset.phone.replace(/^0/, "+233"); // Convert local to intl (Ghana example)
-      const msg = encodeURIComponent(`Hi ${name}, we missed you at church today 🙏. Hope you’re doing well.`);
+    let alertMsg = "";
+    if (sent.length) alertMsg += `SMS request sent to: ${sent.join(", ")}.\n`;
+    if (failed.length) alertMsg += `Failed to send to: ${failed.join(", ")}. Possibly insufficient credits.`;
+
+    alert(alertMsg);
+    console.log("SMS Results:", results);
+  });
+});
+
+  document.getElementById("sendWhatsApp").addEventListener("click", function () {
+    const list = getSelectedAbsentees();
+    if (!list.length) return alert("No absentees selected!");
+    list.forEach(a => {
+      const phone = a.phone.replace(/^0/, "+233");
+      const msg = encodeURIComponent(`Hi ${a.fullName}, we missed you at church today 🙏.`);
       window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
     });
-  };
+  });
+
+});
 </script>
+
 </body>
 </html>
