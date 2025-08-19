@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Absentees Notification</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <style>
   body {
     font-family: Arial, sans-serif;
@@ -15,6 +16,7 @@
   h2 {
     text-align: center;
     color: #333;
+    margin-bottom: 20px;
   }
 
   .container {
@@ -36,6 +38,7 @@
     padding: 10px;
     text-align: center;
     border-bottom: 1px solid #ddd;
+    word-break: break-word;
   }
 
   th {
@@ -63,6 +66,7 @@
     color: #fff;
     font-weight: bold;
     transition: background 0.3s ease;
+    flex: 1 1 150px;
   }
 
   #sendEmail { background: #28a745; }
@@ -73,6 +77,36 @@
 
   #sendWhatsApp { background: #25D366; }
   #sendWhatsApp:hover { background: #1ebe5d; }
+
+  /* Notification message */
+  #notification {
+    text-align: center;
+    margin-bottom: 15px;
+    padding: 10px;
+    border-radius: 6px;
+    display: none;
+    transition: opacity 1s ease;
+  }
+  #notification.fade { opacity: 0; }
+
+  @media(max-width: 576px) {
+    table, thead, tbody, th, td, tr {
+      display: block;
+    }
+    th { display: none; }
+    td {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px;
+      border: 1px solid #ddd;
+      margin-bottom: 5px;
+    }
+    td::before {
+      content: attr(data-label);
+      font-weight: bold;
+    }
+    .buttons { flex-direction: column; }
+  }
 </style>
 </head>
 <body>
@@ -80,10 +114,12 @@
 <div class="container">
   <h2>📋 Absentees List</h2>
 
+  <div id="notification"></div>
+
   <table id="absenteesTable">
     <thead>
       <tr>
-        <th>Select</th>
+        <th><input type="checkbox" id="selectAll"></th>
         <th>Name</th>
         <th>Phone</th>
         <th>Email</th>
@@ -101,7 +137,6 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-
   let members = JSON.parse(localStorage.getItem("members")) || [
     { fullName: "John Doe", phone: "0540000000", email: "john@example.com" },
     { fullName: "Mary Ann", phone: "0541111111", email: "mary@example.com" },
@@ -109,83 +144,106 @@ document.addEventListener("DOMContentLoaded", function () {
   ];
 
   let currentSession = JSON.parse(localStorage.getItem("currentSession")) || {
-    attendanceRecords: [ { phone: "0540000000" } ] // example present member
+    attendanceRecords: [ { phone: "0540000000" } ]
   };
 
   const tbody = document.querySelector("#absenteesTable tbody");
-
   const absentees = members.filter(m => !currentSession.attendanceRecords.some(r => r.phone === m.phone));
 
   absentees.forEach((m, index) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td><input type="checkbox" class="absent-check" data-index="${index}" checked></td>
-      <td>${m.fullName}</td>
-      <td>${m.phone}</td>
-      <td>${m.email || "N/A"}</td>
+      <td data-label="Select"><input type="checkbox" class="absent-check" data-index="${index}" checked></td>
+      <td data-label="Name">${m.fullName}</td>
+      <td data-label="Phone">${m.phone}</td>
+      <td data-label="Email">${m.email || "N/A"}</td>
     `;
     tbody.appendChild(tr);
   });
+
+  function showNotification(message, type="info") {
+    const notification = document.getElementById("notification");
+    notification.textContent = message;
+    notification.className = `alert alert-${type}`;
+    notification.style.display = "block";
+    notification.style.opacity = 1;
+
+    setTimeout(() => {
+      notification.classList.add("fade");
+      setTimeout(() => {
+        notification.style.display = "none";
+        notification.classList.remove("fade");
+      }, 1000);
+    }, 3000);
+  }
 
   function getSelectedAbsentees() {
     const checked = document.querySelectorAll(".absent-check:checked");
     return Array.from(checked).map(cb => absentees[cb.dataset.index]);
   }
 
+  // Select/Deselect All functionality
+  const selectAllCheckbox = document.getElementById("selectAll");
+  selectAllCheckbox.addEventListener("change", function () {
+    const checkboxes = document.querySelectorAll(".absent-check");
+    checkboxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
+  });
+
+  document.addEventListener("change", function(e) {
+    if (e.target.classList.contains("absent-check") && !e.target.checked) {
+      selectAllCheckbox.checked = false;
+    }
+  });
+
   document.getElementById("sendEmail").addEventListener("click", function () {
     const list = getSelectedAbsentees();
-    if (!list.length) return alert("No absentees selected!");
+    if (!list.length) return showNotification("No absentees selected!", "warning");
     list.forEach(a => console.log("Email sent to:", a.email));
-    alert("Emails sent!");
+    showNotification("Emails sent successfully!", "success");
   });
 
+  document.getElementById("sendSMS").addEventListener("click", function () {
+    const list = getSelectedAbsentees();
+    if (!list.length) return showNotification("No absentees selected!", "warning");
 
+    const apiKey = "HAJaVctgnWql8bPMtAga3R3fB";
 
-document.getElementById("sendSMS").addEventListener("click", function () {
-  const list = getSelectedAbsentees();
-  if (!list.length) return alert("No absentees selected!");
+    const smsPromises = list.map(a => {
+      const phone = a.phone.startsWith("0") ? "233" + a.phone.substring(1) : a.phone;
+      const msg = `Hi ${a.fullName}, you were absent today.`;
 
-  const apiKey = "HAJaVctgnWql8bPMtAga3R3fB";
-
-  const smsPromises = list.map(a => {
-    const phone = a.phone.startsWith("0") ? "233" + a.phone.substring(1) : a.phone;
-    const msg = `Hi ${a.fullName}, you were absent today.`; // Simple text, no emojis
-
-    return fetch("https://www.mnotify.com/api/sms/quick", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        token: apiKey,
-        to: phone,
-        message: msg
+      return fetch("https://www.mnotify.com/api/sms/quick", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: apiKey, to: phone, message: msg })
       })
-    })
-    .then(res => res.json())
-    .then(data => ({ name: a.fullName, phone, response: data }))
-    .catch(err => ({ name: a.fullName, phone, error: err }));
+      .then(res => res.json())
+      .then(data => ({ name: a.fullName, phone, response: data }))
+      .catch(err => ({ name: a.fullName, phone, error: err }));
+    });
+
+    Promise.all(smsPromises).then(results => {
+      const sent = results.filter(r => r.response && r.response.status === "success").map(r => r.name);
+      const failed = results.filter(r => r.error || (r.response && r.response.status !== "success")).map(r => r.name);
+
+      let msg = "";
+      if (sent.length) msg += `SMS sent to: ${sent.join(", ")}. `;
+      if (failed.length) msg += `Failed: ${failed.join(", ")}.`;
+
+      showNotification(msg || "No SMS sent.", failed.length ? "danger" : "success");
+      console.log("SMS Results:", results);
+    });
   });
-
-  Promise.all(smsPromises).then(results => {
-    const sent = results.filter(r => r.response && r.response.status === "success").map(r => r.name);
-    const failed = results.filter(r => r.error || (r.response && r.response.status !== "success")).map(r => r.name);
-
-    let alertMsg = "";
-    if (sent.length) alertMsg += `SMS request sent to: ${sent.join(", ")}.\n`;
-    if (failed.length) alertMsg += `Failed to send to: ${failed.join(", ")}. Possibly insufficient credits.`;
-
-    alert(alertMsg);
-    console.log("SMS Results:", results);
-  });
-});
 
   document.getElementById("sendWhatsApp").addEventListener("click", function () {
     const list = getSelectedAbsentees();
-    if (!list.length) return alert("No absentees selected!");
+    if (!list.length) return showNotification("No absentees selected!", "warning");
     list.forEach(a => {
       const phone = a.phone.replace(/^0/, "+233");
       const msg = encodeURIComponent(`Hi ${a.fullName}, we missed you at church today 🙏.`);
       window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
     });
+    showNotification("WhatsApp messages opened!", "success");
   });
 
 });
