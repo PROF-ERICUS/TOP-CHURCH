@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Absentees Notification</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<!-- Font Awesome CDN -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
   body {
     font-family: Arial, sans-serif;
@@ -46,9 +48,9 @@
     color: #fff;
   }
 
-  tr:hover {
-    background: #f1f1f1;
-  }
+  tr:nth-child(odd) { background: #e9f5ff; }
+  tr:nth-child(even) { background: #fff3e6; }
+  tr:hover { background: #d1e7fd; }
 
   .buttons {
     margin-top: 15px;
@@ -67,10 +69,11 @@
     font-weight: bold;
     transition: background 0.3s ease;
     flex: 1 1 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
   }
-
-  #sendEmail { background: #28a745; }
-  #sendEmail:hover { background: #218838; }
 
   #sendSMS { background: #ffc107; color: #333; }
   #sendSMS:hover { background: #e0a800; }
@@ -78,7 +81,6 @@
   #sendWhatsApp { background: #25D366; }
   #sendWhatsApp:hover { background: #1ebe5d; }
 
-  /* Notification message */
   #notification {
     text-align: center;
     margin-bottom: 15px;
@@ -122,25 +124,23 @@
         <th><input type="checkbox" id="selectAll"></th>
         <th>Name</th>
         <th>Phone</th>
-        <th>Email</th>
       </tr>
     </thead>
     <tbody></tbody>
   </table>
 
   <div class="buttons">
-    <button id="sendEmail">Send Email</button>
-    <button id="sendSMS">Send SMS</button>
-    <button id="sendWhatsApp">Send WhatsApp</button>
+    <button id="sendSMS"><i class="fas fa-sms"></i> Send SMS</button>
+    <button id="sendWhatsApp"><i class="fab fa-whatsapp"></i> WhatsApp</button>
   </div>
 </div>
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
   let members = JSON.parse(localStorage.getItem("members")) || [
-    { fullName: "John Doe", phone: "0540000000", email: "john@example.com" },
-    { fullName: "Mary Ann", phone: "0541111111", email: "mary@example.com" },
-    { fullName: "David King", phone: "0542222222", email: "david@example.com" }
+    { fullName: "John Doe", phone: "0540000000" },
+    { fullName: "Mary Ann", phone: "0541111111" },
+    { fullName: "David King", phone: "0542222222" }
   ];
 
   let currentSession = JSON.parse(localStorage.getItem("currentSession")) || {
@@ -154,9 +154,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td data-label="Select"><input type="checkbox" class="absent-check" data-index="${index}" checked></td>
-      <td data-label="Name">${m.fullName}</td>
-      <td data-label="Phone">${m.phone}</td>
-      <td data-label="Email">${m.email || "N/A"}</td>
+      <td data-label="Name"><i class="fas fa-user"></i> ${m.fullName}</td>
+      <td data-label="Phone"><i class="fas fa-phone"></i> ${m.phone}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -182,7 +181,6 @@ document.addEventListener("DOMContentLoaded", function () {
     return Array.from(checked).map(cb => absentees[cb.dataset.index]);
   }
 
-  // Select/Deselect All functionality
   const selectAllCheckbox = document.getElementById("selectAll");
   selectAllCheckbox.addEventListener("change", function () {
     const checkboxes = document.querySelectorAll(".absent-check");
@@ -193,13 +191,6 @@ document.addEventListener("DOMContentLoaded", function () {
     if (e.target.classList.contains("absent-check") && !e.target.checked) {
       selectAllCheckbox.checked = false;
     }
-  });
-
-  document.getElementById("sendEmail").addEventListener("click", function () {
-    const list = getSelectedAbsentees();
-    if (!list.length) return showNotification("No absentees selected!", "warning");
-    list.forEach(a => console.log("Email sent to:", a.email));
-    showNotification("Emails sent successfully!", "success");
   });
 
   document.getElementById("sendSMS").addEventListener("click", function () {
@@ -245,7 +236,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
     showNotification("WhatsApp messages opened!", "success");
   });
-
 });
 </script>
 
