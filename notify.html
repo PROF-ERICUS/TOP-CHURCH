@@ -22,7 +22,7 @@
   }
 
   .container {
-    max-width: 900px;
+    max-width: 950px;
     margin: auto;
     background: #fff;
     padding: 20px;
@@ -69,11 +69,10 @@
     font-weight: bold;
     transition: background 0.3s ease;
     flex: 1 1 150px;
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    font-size: 16px;
   }
 
   #sendSMS { background: #ffc107; color: #333; }
@@ -140,9 +139,7 @@
   </div>
 </div>
 
-<!-- jsPDF library for PDF export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
 <script>
 document.addEventListener("DOMContentLoaded", function () {
   let members = JSON.parse(localStorage.getItem("members")) || [
@@ -163,7 +160,11 @@ document.addEventListener("DOMContentLoaded", function () {
     tr.innerHTML = `
       <td data-label="Select"><input type="checkbox" class="absent-check" data-index="${index}" checked></td>
       <td data-label="Name"><i class="fas fa-user"></i> ${m.fullName}</td>
-      <td data-label="Phone"><i class="fas fa-phone"></i> ${m.phone}</td>
+      <td data-label="Phone">
+        <a href="tel:${m.phone}" style="color: inherit; text-decoration: none;">
+          <i class="fas fa-phone"></i> ${m.phone}
+        </a>
+      </td>
     `;
     tbody.appendChild(tr);
   });
@@ -174,6 +175,7 @@ document.addEventListener("DOMContentLoaded", function () {
     notification.className = `alert alert-${type}`;
     notification.style.display = "block";
     notification.style.opacity = 1;
+
     setTimeout(() => {
       notification.classList.add("fade");
       setTimeout(() => {
@@ -190,22 +192,26 @@ document.addEventListener("DOMContentLoaded", function () {
 
   const selectAllCheckbox = document.getElementById("selectAll");
   selectAllCheckbox.addEventListener("change", function () {
-    document.querySelectorAll(".absent-check").forEach(cb => cb.checked = selectAllCheckbox.checked);
+    const checkboxes = document.querySelectorAll(".absent-check");
+    checkboxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
   });
 
   document.addEventListener("change", function(e) {
-    if (e.target.classList.contains("absent-check") && !e.target.checked) selectAllCheckbox.checked = false;
+    if (e.target.classList.contains("absent-check") && !e.target.checked) {
+      selectAllCheckbox.checked = false;
+    }
   });
 
-  // Send SMS
   document.getElementById("sendSMS").addEventListener("click", function () {
     const list = getSelectedAbsentees();
     if (!list.length) return showNotification("No absentees selected!", "warning");
 
     const apiKey = "HAJaVctgnWql8bPMtAga3R3fB";
+
     const smsPromises = list.map(a => {
       const phone = a.phone.startsWith("0") ? "233" + a.phone.substring(1) : a.phone;
       const msg = `Hi ${a.fullName}, you were absent today.`;
+
       return fetch("https://www.mnotify.com/api/sms/quick", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -219,15 +225,16 @@ document.addEventListener("DOMContentLoaded", function () {
     Promise.all(smsPromises).then(results => {
       const sent = results.filter(r => r.response && r.response.status === "success").map(r => r.name);
       const failed = results.filter(r => r.error || (r.response && r.response.status !== "success")).map(r => r.name);
+
       let msg = "";
       if (sent.length) msg += `SMS sent to: ${sent.join(", ")}. `;
       if (failed.length) msg += `Failed: ${failed.join(", ")}.`;
+
       showNotification(msg || "No SMS sent.", failed.length ? "danger" : "success");
       console.log("SMS Results:", results);
     });
   });
 
-  // WhatsApp
   document.getElementById("sendWhatsApp").addEventListener("click", function () {
     const list = getSelectedAbsentees();
     if (!list.length) return showNotification("No absentees selected!", "warning");
@@ -239,32 +246,32 @@ document.addEventListener("DOMContentLoaded", function () {
     showNotification("WhatsApp messages opened!", "success");
   });
 
-  // Download PDF
   document.getElementById("downloadPDF").addEventListener("click", function () {
+    const list = getSelectedAbsentees();
+    if (!list.length) return showNotification("No absentees selected!", "warning");
+
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     doc.setFontSize(18);
     doc.text("Absentees List", 14, 22);
     doc.setFontSize(12);
 
-    const headers = [["Name", "Phone"]];
-    const data = getSelectedAbsentees().map(a => [a.fullName, a.phone]);
+    const tableColumn = ["Name", "Phone"];
+    const tableRows = list.map(a => [a.fullName, a.phone]);
 
+    // AutoTable
     doc.autoTable({
-      head: headers,
-      body: data,
-      startY: 30,
-      theme: "grid",
-      headStyles: { fillColor: [0, 123, 255], textColor: 255 },
+      head: [tableColumn],
+      body: tableRows,
+      startY: 30
     });
-    doc.save("Absentees.pdf");
-    showNotification("PDF downloaded!", "success");
+
+    doc.save("Absentees_List.pdf");
   });
 
 });
 </script>
-<!-- jsPDF AutoTable plugin -->
+<!-- jsPDF AutoTable Plugin -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-
 </body>
 </html>
