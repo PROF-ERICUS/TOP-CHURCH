@@ -227,7 +227,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const failed = results.filter(r => r.error || (r.response && r.response.status !== "success")).map(r => r.name);
 
       let msg = "";
-      if (sent.length) msg += `SMS sent to: ${sent.join(", ")}. `;
+      if (sent.length) msg += `SMS sent to: ${sent.join("Top Ministries International missed you at church today 🙏. Hope you're doing well ")}. `;
       if (failed.length) msg += `Failed: ${failed.join(", ")}.`;
 
       showNotification(msg || "No SMS sent.", failed.length ? "danger" : "success");
@@ -240,7 +240,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!list.length) return showNotification("No absentees selected!", "warning");
     list.forEach(a => {
       const phone = a.phone.replace(/^0/, "+233");
-      const msg = encodeURIComponent(`Hi ${a.fullName}, we missed you at church today 🙏.`);
+      const msg = encodeURIComponent(`Hi ${a.fullName}, Top Ministries International missed you at church today 🙏. Hope you're doing well`);
       window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
     });
     showNotification("WhatsApp messages opened!", "success");
@@ -275,3 +275,4 @@ document.addEventListener("DOMContentLoaded", function () {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 </body>
 </html>
+
